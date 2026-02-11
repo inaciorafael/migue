@@ -45,7 +45,7 @@ export class MigueEngine {
 
       const runtimeContext = {
         params,
-        // query,
+        query,
         match: rule.match,
         body,
       }
