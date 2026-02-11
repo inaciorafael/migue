@@ -24,12 +24,19 @@
       }
     }
   },
-    {
+  {
     "id": "mock-001",
     "enabled": true,
+    "triggerError": false,
     "match": {
       "method": "GET",
       "path": "/bfffeatureflagapi/featureflag/getall"
+    },
+    "error": {
+      "status": 401,
+      "body": {
+        "message": "mensagem {{ uuid() }} {{ body.email }} de error body"
+      }
     },
     "response": {
       "status": 200,
@@ -45,7 +52,7 @@
           "street": "{{ faker.location.street() }}",
           "city": "{{ faker.location.city() }}"
         },
-        "items": "{{ Array.from({length: randomInt(2,5)}, () => ({ id: uuid(), name: faker.commerce.productName() })) }}"
+        "items": "{{ Array.from({length: randomInt(2,5)}, (_, i) => ({ id: uuid(), name: faker.commerce.productName(), isFirst: i === 0 })) }}"
       }
     }
   }

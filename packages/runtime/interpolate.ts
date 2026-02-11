@@ -1,36 +1,43 @@
 import { evaluateExpression } from "./TemplateRuntime";
 
-const TEMPLATE_REGEX = /^\{\{(.+)\}\}$/;
+const TEMPLATE_REGEX_GLOBAL = /\{\{(.+?)\}\}/g;
+const TEMPLATE_REGEX_FULL = /^\s*\{\{(.+?)\}\}\s*$/;
 
 export function interpolate(value: any, ctx: any): any {
-  // string template
   if (typeof value === "string") {
-    const match = value.match(TEMPLATE_REGEX);
-
-    if (match) {
-      return evaluateExpression(match[1].trim(), ctx);
+    const fullMatch = value.match(TEMPLATE_REGEX_FULL);
+    if (fullMatch) {
+      try {
+        return evaluateExpression(fullMatch[1].trim(), ctx);
+      } catch (err) {
+        console.error("Erro ao avaliar template completo:", fullMatch[1], err);
+        return value;
+      }
     }
 
-    return value;
+    return value.replace(TEMPLATE_REGEX_GLOBAL, (_, expr) => {
+      try {
+        const evalResult = evaluateExpression(expr.trim(), ctx);
+        return String(evalResult);
+      } catch (err) {
+        console.error("Erro ao avaliar template parcial:", expr, err);
+        return `{{${expr}}}`;
+      }
+    });
   }
 
-  // array
   if (Array.isArray(value)) {
     return value.map((v) => interpolate(v, ctx));
   }
 
-  // object (O PONTO CRÍTICO AQUI)
   if (typeof value === "object" && value !== null) {
     const result: any = {};
-
     for (const key of Object.keys(value)) {
-      // 🔥 O RESULTADO PARCIAL VIRA CONTEXTO
       result[key] = interpolate(value[key], {
         ...ctx,
         ...result,
       });
     }
-
     return result;
   }
 

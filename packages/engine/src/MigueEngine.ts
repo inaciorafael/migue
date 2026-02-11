@@ -5,11 +5,6 @@ import { findMatchingRule } from "./Matcher";
 import { interpolate } from "../../runtime";
 import https from "https";
 
-const insecureAgent = new https.Agent({
-  rejectUnauthorized: false,
-  family: 4,
-});
-
 export class MigueEngine {
   private backend: string;
   private store: MockStore;
@@ -20,7 +15,6 @@ export class MigueEngine {
   }
 
   async handle(req: any, res: any) {
-    // CORS GLOBAL
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Access-Control-Allow-Headers", "*");
@@ -49,12 +43,43 @@ export class MigueEngine {
       body,
     );
 
-    // 🎭 MOCK
     if (matchResult) {
       const { rule, params } = matchResult;
 
-      const runtimeContext = { params, query, match: rule.match, body };
-      const bodyResponse = interpolate(rule.response.body, runtimeContext);
+      const runtimeContext = {
+        params,
+        query,
+        match: rule.match,
+        error: rule.error,
+      };
+
+      const bodyInterpolated = interpolate(rule.response.body, runtimeContext);
+      const bodyResponse = interpolate(rule.response.body, {
+        ...runtimeContext,
+        body: bodyInterpolated,
+      });
+
+      if (rule.triggerError) {
+        res.writeHead(rule.error?.status || 500, {
+          "Content-Type": "application/json",
+        });
+
+        const errorResponse = interpolate(rule.error?.body, {
+          ...runtimeContext,
+          body: bodyResponse
+        });
+        console.log({ errorResponse });
+
+        res.end(
+          JSON.stringify({
+            error: errorResponse,
+            _MIGUE: {
+              message: "MIGUE FORCED ERROR",
+            },
+          }),
+        );
+        return;
+      }
 
       res.writeHead(rule.response.status, {
         "Content-Type": "application/json",
@@ -64,12 +89,11 @@ export class MigueEngine {
       return;
     }
 
-    // 🌐 BACKEND REAL (AXIOS)
     if (this.backend) {
       const headers = {
-        ...req.headers, // repassa todos headers originais
-        host: undefined, // evita conflito de host
-        "content-length": undefined, // Axios recalcula
+        ...req.headers,
+        host: undefined,
+        "content-length": undefined,
       };
 
       const response = await axios({
@@ -79,7 +103,7 @@ export class MigueEngine {
         data: body,
         validateStatus: () => true,
         httpsAgent: new https.Agent({ rejectUnauthorized: false, family: 4 }),
-        withCredentials: true, // envia cookies
+        withCredentials: true,
         timeout: 15000,
       });
 
