@@ -11,6 +11,7 @@
       "delay": 1000,
       "body": {
         "id": "{{ uuid() }}",
+        "teste": "{{ query.ua || 'nao tem' }}",
         "name": "{{ faker.person.fullName() }}",
         "teste_sdasdjkajsd": "{{ name }}",
         "email": "{{ faker.internet.email() }}",
