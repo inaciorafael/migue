@@ -2,11 +2,24 @@ import http from "http";
 import { MigueEngine } from "../../../packages/engine/src";
 import { MockStore } from "../../../packages/mocks/src";
 
+function applyCors(res: any) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+  );
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+
 export function startServer(mocksPath: string, backend: string, port: number) {
   const store = new MockStore(mocksPath);
   const engine = new MigueEngine(store, backend);
 
   const server = http.createServer((req, res) => {
+    // res.setHeader("Access-Control-Allow-Origin", "*");
+    // res.setHeader("Access-Control-Allow-Credentials", "true");
+    // res.setHeader("Content-Type", "application/json; charset=utf-8");
+
     engine.handle(req, res);
   });
 

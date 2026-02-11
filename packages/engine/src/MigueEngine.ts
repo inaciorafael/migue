@@ -1,11 +1,16 @@
-import httpProxy from "http-proxy";
 import getRawBody from "raw-body";
+import axios from "axios";
 import { MockStore } from "../../mocks/src";
 import { findMatchingRule } from "./Matcher";
 import { interpolate } from "../../runtime";
+import https from "https";
+
+const insecureAgent = new https.Agent({
+  rejectUnauthorized: false,
+  family: 4,
+});
 
 export class MigueEngine {
-  private proxy = httpProxy.createProxyServer({});
   private backend: string;
   private store: MockStore;
 
@@ -15,11 +20,23 @@ export class MigueEngine {
   }
 
   async handle(req: any, res: any) {
-    const start = Date.now();
+    // CORS GLOBAL
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    );
 
-    const bodyBuffer = await getRawBody(req);
-    const bodyString = bodyBuffer.toString() || "{}";
-    const body = JSON.parse(bodyString);
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
+    const bodyBuffer = await getRawBody(req).catch(() => Buffer.from(""));
+    const body = bodyBuffer.length ? JSON.parse(bodyBuffer.toString()) : {};
 
     const url = new URL(req.url!, "http://localhost");
     const query = Object.fromEntries(url.searchParams.entries());
@@ -32,59 +49,49 @@ export class MigueEngine {
       body,
     );
 
+    // 🎭 MOCK
     if (matchResult) {
       const { rule, params } = matchResult;
 
-      if (rule.response.delay) {
-        await new Promise((r) => setTimeout(r, rule.response.delay));
-      }
-
-      res.writeHead(rule.response.status, {
-        "content-type": "application/json",
-      });
-
-      const runtimeContext = {
-        params,
-        query,
-        match: rule.match,
-        body,
-      }
-
+      const runtimeContext = { params, query, match: rule.match, body };
       const bodyResponse = interpolate(rule.response.body, runtimeContext);
 
-      res.end(JSON.stringify(bodyResponse));
-      const time = Date.now() - start;
-
-      console.log(
-        `[MIGUÉ] ${req.method} ${url.pathname} → ${rule.id} (${rule.response.status}) ${time}ms`,
-      );
-      return;
-    }
-
-    if (this.backend) {
-      this.proxy.web(req, res, { target: this.backend });
-
-      res.on("finish", () => {
-        const time = Date.now() - start;
-        console.log(
-          `[MIGUÉ] ${req.method} ${url.pathname} → proxy ${this.backend} (${time}ms)`,
-        );
+      res.writeHead(rule.response.status, {
+        "Content-Type": "application/json",
       });
 
+      res.end(JSON.stringify(bodyResponse));
       return;
     }
 
-    res.writeHead(404, { "content-type": "application/json" });
-    res.end(
-      JSON.stringify({
-        error: "Mock não encontrado e backend não configurado",
-      }),
-    );
+    // 🌐 BACKEND REAL (AXIOS)
+    if (this.backend) {
+      const headers = {
+        ...req.headers, // repassa todos headers originais
+        host: undefined, // evita conflito de host
+        "content-length": undefined, // Axios recalcula
+      };
 
-    const time = Date.now() - start;
+      const response = await axios({
+        url: this.backend + url.pathname + url.search,
+        method: req.method,
+        headers: headers,
+        data: body,
+        validateStatus: () => true,
+        httpsAgent: new https.Agent({ rejectUnauthorized: false, family: 4 }),
+        withCredentials: true, // envia cookies
+        timeout: 15000,
+      });
 
-    console.log(
-      `[MIGUÉ] ${req.method} ${url.pathname} → NO MOCK, NO BACKEND (404) ${time}ms`,
-    );
+      res.writeHead(response.status, {
+        "Content-Type": "application/json",
+      });
+
+      res.end(JSON.stringify(response.data));
+      return;
+    }
+
+    res.writeHead(404);
+    res.end("No mock and no backend");
   }
 }
