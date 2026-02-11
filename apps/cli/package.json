@@ -1,0 +1,17 @@
+{
+  "name": "@migue/cli",
+  "type": "module",
+  "bin": {
+    "migue": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@migue/engine": "workspace:*",
+    "@migue/mocks": "workspace:*",
+    "@migue/schema": "workspace:*",
+    "commander": "^14.0.3",
+    "picocolors": "^1.1.1"
+  }
+}

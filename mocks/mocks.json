@@ -1,0 +1,26 @@
+[
+  {
+    "id": "mock-001",
+    "enabled": true,
+    "match": {
+      "method": "GET",
+      "path": "/users/:id"
+    },
+    "response": {
+      "status": 200,
+      "delay": 1000,
+      "body": {
+        "id": "{{ uuid() }}",
+        "name": "{{ faker.person.fullName() }}",
+        "teste_sdasdjkajsd": "{{ name }}",
+        "email": "{{ faker.internet.email() }}",
+        "avatar": "{{ faker.image.avatar() }}",
+        "address": {
+          "street": "{{ faker.location.street() }}",
+          "city": "{{ faker.location.city() }}"
+        },
+        "items": "{{ Array.from({length: randomInt(2,5)}, () => ({ id: uuid(), name: faker.commerce.productName() })) }}"
+      }
+    }
+  }
+]

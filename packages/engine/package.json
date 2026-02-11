@@ -1,0 +1,14 @@
+{
+  "name": "@migue/engine",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "http-proxy": "^1.18.1",
+    "path-to-regexp": "^8.3.0",
+    "raw-body": "^3.0.2"
+  },
+  "devDependencies": {
+    "@types/http-proxy": "^1.17.17"
+  }
+}

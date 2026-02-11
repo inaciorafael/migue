@@ -1,0 +1,41 @@
+import { match } from "path-to-regexp";
+import { MockRule } from "../../schema/src";
+
+export function findMatchingRule(
+  rules: MockRule[],
+  method: string,
+  pathname: string,
+  query: any,
+  body: any,
+): { rule: MockRule, params: any } | null {
+  for (const rule of rules) {
+    if (!rule.enabled) continue;
+
+    if (rule.match.method.toUpperCase() !== method.toUpperCase()) {
+      continue;
+    }
+
+    const matcher = match(rule.match.path, { decode: decodeURIComponent });
+    const pathMatch = matcher(pathname);
+
+    if (!pathMatch) continue;
+
+    if (rule.match.query) {
+      const allMatch = Object.entries(rule.match.query).every(
+        ([key, value]) => query[key] === value,
+      );
+      if (!allMatch) continue;
+    }
+
+    if (rule.match.body) {
+      const allMatch = Object.entries(rule.match.body).every(
+        ([key, value]) => body[key] === value,
+      );
+      if (!allMatch) continue;
+    }
+
+    return { rule, params: pathMatch.params };
+  }
+
+  return null;
+}
