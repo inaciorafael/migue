@@ -71,8 +71,8 @@ export class MigueEngine {
 
         res.end(
           JSON.stringify({
-            error: errorResponse,
-            _MIGUE: {
+            ...errorResponse,
+            _MIGUE_: {
               message: "MIGUE FORCED ERROR",
             },
           }),

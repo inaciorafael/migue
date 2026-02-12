@@ -57,5 +57,44 @@
         "items": "{{ arrayFrom(10, (i) => ({ i: i, name: faker.person.fullName() })) }}"
       }
     }
+  },
+    {
+    "id": "mock-003",
+    "enabled": true,
+    "triggerError": true,
+    "match": {
+      "method": "POST",
+      "path": "/bffbenefitsapi/benefits/:benefitId/redeem"
+    },
+    "error": {
+      "status": 409,
+      "body": {
+        "sucess": false,
+        "code": 409,
+        "message": "Saldo insuficiente para resgatar o benefício",
+        "data": {
+          "code": "INSUFFICIENT_BALANCE"
+        }
+      }
+    },
+    "response": {
+      "status": 200,
+      "delay": 1000,
+      "body": {
+        "id": "{{ uuid() }}",
+        "date": "{{ subtractDays(1) }}",
+        "on": "{{ randomBool() }}",
+        "teste": "{{ query.ua || 'nao tem' }}",
+        "name": "{{ faker.person.fullName() }}",
+        "teste_sdasdjkajsd": "{{ name }}",
+        "email": "{{ faker.internet.email() }}",
+        "avatar": "{{ faker.image.avatar() }}",
+        "address": {
+          "street": "{{ faker.location.street() }}",
+          "city": "{{ faker.location.city() }}"
+        },
+        "items": "{{ arrayFrom(10, (i) => ({ i: i, name: faker.person.fullName() })) }}"
+      }
+    }
   }
 ]
