@@ -43,6 +43,8 @@
       "delay": 1000,
       "body": {
         "id": "{{ uuid() }}",
+        "date": "{{ subtractDays(1) }}",
+        "on": "{{ randomBool() }}",
         "teste": "{{ query.ua || 'nao tem' }}",
         "name": "{{ faker.person.fullName() }}",
         "teste_sdasdjkajsd": "{{ name }}",
@@ -52,7 +54,7 @@
           "street": "{{ faker.location.street() }}",
           "city": "{{ faker.location.city() }}"
         },
-        "items": "{{ Array.from({length: randomInt(2,5)}, (_, i) => ({ id: uuid(), name: faker.commerce.productName(), isFirst: i === 0 })) }}"
+        "items": "{{ arrayFrom(10, (i) => ({ i: i, name: faker.person.fullName() })) }}"
       }
     }
   }

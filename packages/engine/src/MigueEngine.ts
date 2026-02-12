@@ -68,7 +68,6 @@ export class MigueEngine {
           ...runtimeContext,
           body: bodyResponse
         });
-        console.log({ errorResponse });
 
         res.end(
           JSON.stringify({
