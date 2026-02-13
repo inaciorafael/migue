@@ -1,12 +1,12 @@
 import vm from "node:vm";
-import { TemplateHelpers } from "./helpers";
+import { templateHelpers } from "./helpers";
 
 export function evaluateExpression(
   expression: string,
   context: Record<string, any>,
 ) {
   const sandbox = {
-    ...TemplateHelpers,
+    ...templateHelpers,
     ...context,
   };
 

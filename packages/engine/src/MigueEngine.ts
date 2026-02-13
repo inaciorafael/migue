@@ -4,6 +4,8 @@ import { MockStore } from "../../mocks/src";
 import { findMatchingRule } from "./Matcher";
 import { interpolate } from "../../runtime";
 import https from "https";
+import { templateHelpers } from "../../runtime/helpers";
+import { RuntimeCtx } from "../../schema/src/defineMock";
 
 export class MigueEngine {
   private backend: string;
@@ -15,6 +17,12 @@ export class MigueEngine {
   }
 
   async handle(req: any, res: any) {
+    if (req.method === "OPTIONS" || req.url === "/favicon.ico") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Access-Control-Allow-Headers", "*");
@@ -22,12 +30,6 @@ export class MigueEngine {
       "Access-Control-Allow-Methods",
       "GET,POST,PUT,PATCH,DELETE,OPTIONS",
     );
-
-    if (req.method === "OPTIONS") {
-      res.writeHead(204);
-      res.end();
-      return;
-    }
 
     const bodyBuffer = await getRawBody(req).catch(() => Buffer.from(""));
     const body = bodyBuffer.length ? JSON.parse(bodyBuffer.toString()) : {};
@@ -43,51 +45,69 @@ export class MigueEngine {
       body,
     );
 
-    if (matchResult) {
-      const { rule, params } = matchResult;
+    console.log({
+      matchResult,
+      url,
+      query,
+      rules: this.store.getRules(),
+    });
 
-      const runtimeContext = {
+    if (matchResult) {
+      const { rule, params, query: queryResult } = matchResult;
+
+      const runtimeContext: RuntimeCtx = {
+        ...templateHelpers,
         params,
-        query,
-        match: rule.match,
-        error: rule.error,
+        query: queryResult,
+        body,
       };
 
-      const bodyInterpolated = interpolate(rule.response.body, runtimeContext);
-      const bodyResponse = interpolate(rule.response.body, {
-        ...runtimeContext,
-        body: bodyInterpolated,
-      });
+      const resolvedResponse =
+        typeof rule.response === "function"
+          ? rule.response(runtimeContext)
+          : rule.response;
+
+      const resolvedError =
+        typeof rule.error === "function"
+          ? rule.error(runtimeContext)
+          : rule.error;
+
+      // const bodyInterpolated = interpolate(
+      //   resolvedResponse.body,
+      //   runtimeContext,
+      // );
+      //
+      // const bodyResponse = interpolate(bodyInterpolated, {
+      //   ...runtimeContext,
+      //   body: bodyInterpolated,
+      // });
 
       if (rule.triggerError) {
-        res.writeHead(rule.error?.status || 500, {
-          "Content-Type": "application/json",
-        });
+        const errorBody = interpolate(resolvedError?.body, runtimeContext);
 
-        const errorResponse = interpolate(rule.error?.body, {
-          ...runtimeContext,
-          body: bodyResponse
+        res.writeHead(resolvedError?.status || 500, {
+          "Content-Type": "application/json",
         });
 
         res.end(
           JSON.stringify({
-            ...errorResponse,
-            _MIGUE_: {
-              message: "MIGUE FORCED ERROR",
-            },
+            ...resolvedError.body,
+            _MIGUE_: { message: "MIGUE FORCED ERROR" },
           }),
         );
         return;
       }
 
-      res.writeHead(rule.response.status, {
+      res.writeHead(resolvedResponse.status || 200, {
         "Content-Type": "application/json",
       });
 
-      res.end(JSON.stringify({
-        ...bodyResponse,
-        _MIGUE_: true
-      }));
+      res.end(
+        JSON.stringify({
+          ...resolvedResponse.body,
+          _MIGUE_: true,
+        }),
+      );
       return;
     }
 

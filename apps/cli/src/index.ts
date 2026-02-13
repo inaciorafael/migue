@@ -6,7 +6,7 @@ import { startServer } from "./server";
 const program = new Command();
 
 program
-  .option("--mocks <path>", "Pasta dos mocks", '../../../mocks/mocks.json')
+  .option("--mocks <path>", "Pasta dos mocks", '../../../mocks')
   .option("--backend <url>", "Backend real")
   .option("--port <number>", "Porta do servidor", "4321");
 

@@ -9,7 +9,7 @@ export const MockRuleSchema = z.object({
     method: z.string(),
     path: z.string(),
 
-    query: z.record(z.string(), z.string()).optional(),
+    query: z.record(z.string(), z.any()).optional(),
     body: z.any().optional(),
   }),
 

@@ -1,24 +1,52 @@
-import { MockRule, MockRuleSchema } from "./mockRule.ts";
+import { TemplateHelpers } from "../../runtime/helpers.ts";
+import { MockRule } from "./mockRule.ts";
 
-type ResponseFn = (ctx: any) => {
-  status: number;
-  delay?: number;
+type ExtractParamNames<Path extends string> =
+  Path extends `${string}:${infer Param}/${infer Rest}`
+  ? Param | ExtractParamNames<`/${Rest}`>
+  : Path extends `${string}:${infer Param}`
+  ? Param
+  : never;
+
+type ParamsFromPath<Path extends string> = {
+  [K in ExtractParamNames<Path>]: string;
+};
+
+export type RuntimeCtx<Q = {}, P = {}> = TemplateHelpers & {
+  params: P;
+  query: Q;
   body: any;
 };
 
-type AuthorMockRule = Omit<MockRule, "response"> & {
-  response: MockRule["response"] | ResponseFn;
+export type TsMockRule<M extends { path: string; query?: any }> = Omit<
+  MockRule,
+  "response" | "error"
+> & {
+  response: (
+    ctx: TemplateHelpers & {
+      params: ParamsFromPath<M["path"]>;
+      query: M["query"] extends object ? M["query"] : {};
+      body: any;
+    },
+  ) => MockRule["response"];
+
+  error?: (
+    ctx: TemplateHelpers & {
+      params: ParamsFromPath<M["path"]>;
+      query: M["query"] extends object ? M["query"] : {};
+      body: any;
+    },
+  ) => MockRule["error"];
 };
 
-export function defineMock(rule: AuthorMockRule): MockRule {
-  const parsed = MockRuleSchema.omit({ response: true }).parse(rule);
-
-  return {
-    ...parsed,
-    response: rule.response as any,
-  };
+export function defineMock<const M extends { path: string; query?: any }>(
+  rule: TsMockRule<M> & { match: M },
+): TsMockRule<M> {
+  return rule;
 }
 
-export function defineMocks(rules: AuthorMockRule[]): MockRule[] {
-  return rules.map(defineMock);
+export function defineMocks<const M extends { path: string; query?: any }>(
+  rules: TsMockRule<M> & { match: M },
+): TsMockRule<M> {
+  return rules;
 }

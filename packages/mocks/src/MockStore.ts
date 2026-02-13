@@ -1,30 +1,40 @@
-import fs from "fs";
-import path from "path";
 import chokidar from "chokidar";
-import { parseMockRules, MockRule } from "../../schema/src";
+import fg from "fast-glob";
+import { pathToFileURL } from "url";
+import { TsMockRule } from "../../schema/src/defineMock";
 
 export class MockStore {
-  private rules: MockRule[] = [];
-  private filePath: string;
+  private rules: TsMockRule[] = [];
+  private mocksPath: string;
 
-  constructor(filePath: string) {
-    this.filePath = filePath;
+  constructor(mocksPath: string) {
+    this.mocksPath = mocksPath;
     this.load();
     this.watch();
   }
 
-  load() {
+  async load() {
     try {
-      const absolutePath = path.isAbsolute(this.filePath)
-        ? this.filePath
-        : path.resolve(process.cwd(), this.filePath);
+      const files = await fg("**/*.mock.ts", {
+        cwd: this.mocksPath,
+        absolute: true,
+      });
 
-      const raw = fs.readFileSync(absolutePath, "utf-8");
-      const json = JSON.parse(raw);
+      const allRules: TsMockRule[] = [];
 
-      this.rules = parseMockRules(json);
+      for (const file of files) {
+        const modulePath = await import(pathToFileURL(file).href + `?update=${Date.now()}`);
+        const exported = modulePath.default;
 
-      console.log("[MIGUÉ] Mocks carregados:", this.rules.length);
+        if (Array.isArray(exported)) {
+          allRules.push(...exported);
+        } else {
+          allRules.push(exported);
+        }
+      }
+
+      this.rules = allRules;
+      console.log("[MIGUÉ] Mocks TS carregados:", this.rules.length);
     } catch (err) {
       console.error("[MIGUÉ] Erro ao carregar mocks:", err);
       this.rules = [];
@@ -32,8 +42,8 @@ export class MockStore {
   }
 
   watch() {
-    chokidar.watch(this.filePath).on("change", () => {
-      console.log("[MIGUÉ] mocks.json alterado, recarregando...");
+    chokidar.watch(this.mocksPath).on("change", () => {
+      console.log("[MIGUÉ] mock alterado, recarregando...");
       this.load();
     });
   }

@@ -3,7 +3,7 @@ import { faker } from "@faker-js/faker";
 type StateMap = Record<string, any>;
 const state: StateMap = {};
 
-export const TemplateHelpers = {
+export const templateHelpers = {
   uuid: () => crypto.randomUUID(),
   randomInt: (min: number, max: number) =>
     Math.floor(Math.random() * (max - min + 1)) + min,
@@ -22,3 +22,5 @@ export const TemplateHelpers = {
 
   faker,
 };
+
+export type TemplateHelpers = typeof templateHelpers;

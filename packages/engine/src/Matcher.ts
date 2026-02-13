@@ -7,7 +7,11 @@ export function findMatchingRule(
   pathname: string,
   query: any,
   body: any,
-): { rule: MockRule, params: any } | null {
+): {
+  rule: MockRule;
+  params: Record<string, any>;
+  query: Record<string, any>;
+} | null {
   for (const rule of rules) {
     if (!rule.enabled) continue;
 
@@ -21,9 +25,11 @@ export function findMatchingRule(
     if (!pathMatch) continue;
 
     if (rule.match.query) {
+      console.log(rule.match.query)
       const allMatch = Object.entries(rule.match.query).every(
-        ([key, value]) => query[key] === value,
+        ([key, value]) => String(query[key]) === String(value),
       );
+      console.log({ allMatch })
       if (!allMatch) continue;
     }
 
@@ -34,7 +40,7 @@ export function findMatchingRule(
       if (!allMatch) continue;
     }
 
-    return { rule, params: pathMatch.params };
+    return { rule, params: pathMatch.params, query: query };
   }
 
   return null;
