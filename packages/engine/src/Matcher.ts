@@ -25,11 +25,9 @@ export function findMatchingRule(
     if (!pathMatch) continue;
 
     if (rule.match.query) {
-      console.log(rule.match.query)
       const allMatch = Object.entries(rule.match.query).every(
         ([key, value]) => String(query[key]) === String(value),
       );
-      console.log({ allMatch })
       if (!allMatch) continue;
     }
 

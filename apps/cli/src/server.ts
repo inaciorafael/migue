@@ -16,9 +16,10 @@ export function startServer(mocksPath: string, backend: string, port: number) {
   const engine = new MigueEngine(store, backend);
 
   const server = http.createServer((req, res) => {
-    // res.setHeader("Access-Control-Allow-Origin", "*");
-    // res.setHeader("Access-Control-Allow-Credentials", "true");
-    // res.setHeader("Content-Type", "application/json; charset=utf-8");
+    applyCors(res)
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
 
     engine.handle(req, res);
   });
