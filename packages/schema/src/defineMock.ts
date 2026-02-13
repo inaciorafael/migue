@@ -41,12 +41,12 @@ export type TsMockRule<M extends { path: string; query?: any }> = Omit<
 
 export function defineMock<const M extends { path: string; query?: any }>(
   rule: TsMockRule<M> & { match: M },
-): TsMockRule<M> {
+) {
   return rule;
 }
 
-export function defineMocks<const M extends { path: string; query?: any }>(
-  rules: TsMockRule<M> & { match: M },
-): TsMockRule<M> {
+export function defineMocks<
+  const T extends readonly (TsMockRule<any> & { match: any })[]
+>(rules: [...T]) {
   return rules;
 }

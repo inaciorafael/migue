@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const MockRuleSchema = z.object({
-  id: z.string(),
+  id: z.string().default(crypto.randomUUID()).optional(),
   enabled: z.boolean().default(true).optional(),
   triggerError: z.boolean().default(false).optional(),
 
