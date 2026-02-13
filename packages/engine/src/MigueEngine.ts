@@ -84,7 +84,10 @@ export class MigueEngine {
         "Content-Type": "application/json",
       });
 
-      res.end(JSON.stringify(bodyResponse));
+      res.end(JSON.stringify({
+        ...bodyResponse,
+        _MIGUE_: true
+      }));
       return;
     }
 

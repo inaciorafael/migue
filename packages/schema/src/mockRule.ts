@@ -2,8 +2,8 @@ import { z } from "zod";
 
 export const MockRuleSchema = z.object({
   id: z.string(),
-  enabled: z.boolean().default(true),
-  triggerError: z.boolean().default(false),
+  enabled: z.boolean().default(true).optional(),
+  triggerError: z.boolean().default(false).optional(),
 
   match: z.object({
     method: z.string(),

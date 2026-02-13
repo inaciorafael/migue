@@ -25,42 +25,8 @@
     }
   },
   {
-    "id": "mock-001",
-    "enabled": true,
-    "triggerError": false,
-    "match": {
-      "method": "GET",
-      "path": "/bfffeatureflagapi/featureflag/getall"
-    },
-    "error": {
-      "status": 401,
-      "body": {
-        "message": "mensagem {{ uuid() }} {{ body.email }} de error body"
-      }
-    },
-    "response": {
-      "status": 200,
-      "delay": 1000,
-      "body": {
-        "id": "{{ uuid() }}",
-        "date": "{{ subtractDays(1) }}",
-        "on": "{{ randomBool() }}",
-        "teste": "{{ query.ua || 'nao tem' }}",
-        "name": "{{ faker.person.fullName() }}",
-        "teste_sdasdjkajsd": "{{ name }}",
-        "email": "{{ faker.internet.email() }}",
-        "avatar": "{{ faker.image.avatar() }}",
-        "address": {
-          "street": "{{ faker.location.street() }}",
-          "city": "{{ faker.location.city() }}"
-        },
-        "items": "{{ arrayFrom(10, (i) => ({ i: i, name: faker.person.fullName() })) }}"
-      }
-    }
-  },
-    {
     "id": "mock-003",
-    "enabled": true,
+    "enabled": false,
     "triggerError": true,
     "match": {
       "method": "POST",
@@ -82,7 +48,6 @@
       "delay": 1000,
       "body": {
         "id": "{{ uuid() }}",
-        "date": "{{ subtractDays(1) }}",
         "on": "{{ randomBool() }}",
         "teste": "{{ query.ua || 'nao tem' }}",
         "name": "{{ faker.person.fullName() }}",
@@ -94,6 +59,99 @@
           "city": "{{ faker.location.city() }}"
         },
         "items": "{{ arrayFrom(10, (i) => ({ i: i, name: faker.person.fullName() })) }}"
+      }
+    }
+  },
+  {
+    "id": "mock-004",
+    "enabled": false,
+    "triggerError": false,
+    "match": {
+      "method": "GET",
+      "path": "/bffstoreapi/purchases/:id"
+    },
+    "error": {
+      "status": 409,
+      "body": {
+        "sucess": false,
+        "code": 409,
+        "message": "Saldo insuficiente para resgatar o benefício",
+        "data": {
+          "code": "INSUFFICIENT_BALANCE"
+        }
+      }
+    },
+    "response": {
+      "status": 200,
+      "delay": 1000,
+      "body": {
+        "sucess": true,
+        "code": 200,
+        "message": "Dados obtidos com sucesso.",
+        "data": {
+          "id": "68513591",
+          "orderId": 68451812,
+          "productSku": "c757739585e84688a93c",
+          "vendorId": 126038,
+          "productId": 76220774,
+          "name": "Vale Familhão Veveta ",
+          "imageUrl": "https://stpartnerhubvoucherpr001.blob.core.windows.net/sku-images/522fe6e4-3598-46ec-ab1e-10b342d8543e.png",
+          "status": "Confirmado",
+          "address": {
+            "zipCode": "00000000",
+            "state": "AC",
+            "reference": "Não existe",
+            "number": "1",
+            "district": "Nao Informado",
+            "complement": "Nao Informado",
+            "city": "São Paulo",
+            "consolidated": "Nao Informado, 1 - Nao Informado \nNao Informado \nSão Paulo, AC"
+          },
+          "pricing": {
+            "base": 22,
+            "freightage": 0,
+            "total": 22
+          },
+          "isVoucher": true,
+          "isPix": false,
+          "isProductDigital": false,
+          "features": [
+            {
+              "name": "Passo a Passo:",
+              "value": "<p><strong>Resgate no Familhão</strong> - Toque em “Eu quero!” para ir para a confirmação do resgate.</p><p><br></p><p><strong>Confirmação do resgate</strong> - Na próxima etapa, selecione “Confirmar e resgatar” e, em seguida, toque em “Ativar e concorrer”.</p><p><br></p><p><strong>Ativação do código</strong> - Copie o código gerado, cole no campo Vale-Familhão e toque em “Entrar pro Familhão” para concluir sua participação.</p><p><br></p><p><strong>Precisa de ajuda? Fale com o SAC do Familhão </strong>- Você pode consultar <a href=\"https://familhao-ajuda.zendesk.com/hc/pt-br/articles/46243242013460-Carnaval-do-Familh%C3%A3o \" rel=\"noopener noreferrer\" target=\"_blank\" style=\"color: rgb(153, 51, 255); background-color: rgb(255, 255, 255);\"><strong>AQUI</strong></a> o passo a passo completo para ativar seu Vale Familhão Veveta e participar da experiência.</p>",
+              "type": "CARACTERÍSTICAS"
+            },
+            {
+              "name": "Confira as Regras:",
+              "value": "<p>Veja como é fácil usar seu vale do Familhão da Veveta e participar!</p><p><br></p><p><strong>Ative seu acesso</strong> - Toque no botão abaixo para confirmar e resgatar e siga os próximos passos.</p><p><br></p><p><strong>Após ativar e resgatar</strong> - Acesse o seu Familhão da Veveta pelo computador ou celular.</p><p><br></p><p><strong>Agora é só torcer</strong> - Pronto! Você já está concorrendo.</p><p><br></p><p>Em caso de dúvidas, acesse a nossa <a href=\"https://familhao-ajuda.zendesk.com/hc/pt-br/articles/46243242013460-Carnaval-do-Familh%C3%A3o\" rel=\"noopener noreferrer\" target=\"_blank\" style=\"color: rgb(153, 51, 255); background-color: rgb(255, 255, 255);\"><strong>FAQ</strong></a>.</p><p><br></p><p>Para mais detalhes, consulte o <a href=\"https://app.familhao.com/regulamentos\" rel=\"noopener noreferrer\" target=\"_blank\" style=\"color: rgb(153, 51, 255); background-color: rgb(255, 255, 255);\"><strong>regulamento</strong></a>.</p>",
+              "type": "CARACTERÍSTICAS"
+            }
+          ],
+          "description": "Resgate o seu Vale Familhão da Veveta e concorra a uma experiência inesquecível em Porto Seguro (BA). A viagem é com tudo pago, incluindo aéreo, transporte, hospedagem e alimentação, além de direito a 1 acompanhante. E tem mais: você ainda poderá subir no trio elétrico com a Ivete durante o show no CarnaPorto 2026 e registrar esse momento especial com uma foto ao lado de mainha. Uma oportunidade única para viver de perto toda a energia da Veveta!"
+        }
+      }
+    }
+  },
+  {
+    "id": "mock-005",
+    "enabled": false,
+    "triggerError": false,
+    "match": {
+      "method": "GET",
+      "path": "/bffstoreapi/purchases/:vouncherId/voucher"
+    },
+    "response": {
+      "status": 200,
+      "delay": 1000,
+      "body": {
+        "sucess": true,
+        "code": 200,
+        "message": "",
+        "data": {
+          "voucherCode": "6302010000030834",
+          "validity": "2026-12-31T00:00:00",
+          "expiration": "2026-12-01T00:00:00"
+        }
       }
     }
   }
