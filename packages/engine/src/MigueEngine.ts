@@ -9,13 +9,20 @@ import { createRequestContext } from "./createRequestContext";
 import { RequestContext } from "./RequestContext";
 import { Middleware } from "./middleware";
 import { createLoggerMiddleware } from "./middlewares/loggerMiddleware";
+import { ResilientStore } from "./resilient/ResilientStore";
+
+interface EngineOptions {
+  backend?: string;
+  resilient?: boolean;
+}
 
 export class MigueEngine {
   private middlewares: Middleware[] = [];
+  private resilientStore = new ResilientStore();
 
   constructor(
     private store: MockStore,
-    private backend?: string,
+    private options: EngineOptions,
   ) {
     this.use(createLoggerMiddleware());
     this.use(this.createMockMiddleware());
@@ -147,7 +154,7 @@ export class MigueEngine {
 
   private createProxyMiddleware(): Middleware {
     return async (ctx, next) => {
-      if (!this.backend) return next();
+      if (!this.options.backend) return next();
 
       const headers = {
         ...ctx.req.headers,
@@ -157,7 +164,7 @@ export class MigueEngine {
 
       try {
         const response = await axios({
-          url: this.backend + ctx.pathname + ctx.url.search,
+          url: this.options.backend + ctx.pathname + ctx.url.search,
           method: ctx.req.method,
           headers,
           data: ctx.body,
@@ -170,6 +177,18 @@ export class MigueEngine {
           timeout: 15000,
         });
 
+        const isSuccess: boolean =
+          response.status >= 200 && response.status < 300;
+
+        if (this.options.resilient && isSuccess) {
+          this.resilientStore.save(ctx.method, ctx.pathname, {
+            status: response.status,
+            headers: response.headers,
+            body: response.data,
+            timestamp: Date.now(),
+          });
+        }
+
         ctx.res.writeHead(response.status, response.headers);
 
         if (Buffer.isBuffer(response.data)) {
@@ -180,6 +199,26 @@ export class MigueEngine {
           ctx.res.end(response.data);
         }
       } catch (error) {
+        if (this.options.resilient) {
+          const snapshot = this.resilientStore.load(
+            ctx.method,
+            ctx.pathname,
+          );
+
+          if (snapshot) {
+            ctx.res.setHeader("X-MIGUE-RESILIENT", "true");
+
+            ctx.res.writeHead(snapshot.status, snapshot.headers);
+            ctx.res.end(
+              typeof snapshot.body === "object"
+                ? JSON.stringify(snapshot.body)
+                : snapshot.body,
+            );
+
+            return;
+          }
+        }
+
         console.error("Erro no proxy para backend:", error);
 
         this.sendJson(ctx.res, 502, {

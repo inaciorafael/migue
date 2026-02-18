@@ -11,12 +11,20 @@ function applyCors(res: any) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
-export function startServer(mocksPath: string, backend: string, port: number) {
+export function startServer(
+  mocksPath: string,
+  backend: string,
+  port: number,
+  resilient: boolean,
+) {
   const store = new MockStore(mocksPath);
-  const engine = new MigueEngine(store, backend);
+  const engine = new MigueEngine(store, {
+    backend,
+    resilient,
+  });
 
   const server = http.createServer((req, res) => {
-    applyCors(res)
+    applyCors(res);
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Credentials", "true");
     res.setHeader("Content-Type", "application/json; charset=utf-8");
