@@ -1,18 +1,84 @@
-import getRawBody from "raw-body";
 import axios from "axios";
+import https from "https";
 import { MockStore } from "../../mocks/src";
 import { findMatchingRule } from "./Matcher";
-import https from "https";
 import { templateHelpers } from "../../runtime/helpers";
 import { RuntimeCtx } from "../../schema/src/defineMock";
 
-export class MigueEngine {
-  private backend: string;
-  private store: MockStore;
+import { createRequestContext } from "./createRequestContext";
+import { RequestContext } from "./RequestContext";
+import { Middleware } from "./middleware";
+import { createLoggerMiddleware } from "./middlewares/loggerMiddleware";
 
-  constructor(store: MockStore, backend: string) {
-    this.store = store;
-    this.backend = backend;
+export class MigueEngine {
+  private middlewares: Middleware[] = [];
+
+  constructor(
+    private store: MockStore,
+    private backend?: string,
+  ) {
+    this.use(createLoggerMiddleware());
+    this.use(this.createMockMiddleware());
+    this.use(this.createProxyMiddleware());
+  }
+
+  public use(middleware: Middleware) {
+    this.middlewares.push(middleware);
+  }
+
+  private async runMiddlewares(ctx: RequestContext) {
+    let index = -1;
+
+    const dispatch = async (i: number): Promise<void> => {
+      if (i <= index) {
+        throw new Error("next() chamado múltiplas vezes");
+      }
+
+      index = i;
+
+      const middleware = this.middlewares[i];
+      if (!middleware) return;
+
+      await middleware(ctx, () => dispatch(i + 1));
+    };
+
+    await dispatch(0);
+  }
+
+  async handle(req: any, res: any) {
+    if (this.handlePreflight(req, res)) return;
+
+    this.setCorsHeaders(res);
+
+    const ctx = await createRequestContext(req, res);
+
+    await this.runMiddlewares(ctx);
+
+    // if (await this.tryHandleMock(ctx)) return;
+    //
+    // if (await this.tryProxyToBackend(ctx)) return;
+    //
+    // this.sendJson(res, 404, {
+    //   error: "Not Found",
+    //   message: "No mock and no backend configured",
+    // });
+  }
+
+  private handlePreflight(req: any, res: any): boolean {
+    if (req.method === "OPTIONS") {
+      this.setCorsHeaders(res);
+      res.writeHead(204);
+      res.end();
+      return true;
+    }
+
+    if (req.url === "/favicon.ico") {
+      res.writeHead(204);
+      res.end();
+      return true;
+    }
+
+    return false;
   }
 
   private setCorsHeaders(res: any) {
@@ -25,55 +91,29 @@ export class MigueEngine {
     );
   }
 
-  async handle(req: any, res: any) {
-    // Handle preflight requests primeiro
-    if (req.method === "OPTIONS") {
-      this.setCorsHeaders(res);
-      res.writeHead(204);
-      res.end();
-      return;
-    }
+  private createMockMiddleware(): Middleware {
+    return async (ctx, next) => {
+      const matchResult = findMatchingRule(
+        this.store.getRules(),
+        ctx.method,
+        ctx.pathname,
+        ctx.query,
+        ctx.body,
+      );
 
-    // Ignora favicon
-    if (req.url === "/favicon.ico") {
-      res.writeHead(204);
-      res.end();
-      return;
-    }
+      if (!matchResult) return next();
 
-    // Sempre seta CORS headers para todas as respostas
-    this.setCorsHeaders(res);
-
-    const bodyBuffer = await getRawBody(req).catch(() => Buffer.from(""));
-    const body = bodyBuffer.length ? JSON.parse(bodyBuffer.toString()) : {};
-
-    const url = new URL(req.url!, "http://localhost");
-    const query = Object.fromEntries(url.searchParams.entries());
-
-    const matchResult = findMatchingRule(
-      this.store.getRules(),
-      req.method,
-      url.pathname,
-      query,
-      body,
-    );
-
-    console.log({
-      matchResult,
-      url,
-      query,
-      rules: this.store.getRules(),
-    });
-
-    // CASO 1: Mock encontrado
-    if (matchResult) {
       const { rule, params, query: queryResult } = matchResult;
+
+      if (rule.delay) {
+        await this.applyDelay(rule.delay);
+      }
 
       const runtimeContext: RuntimeCtx = {
         ...templateHelpers,
         params,
         query: queryResult,
-        body,
+        body: ctx.body,
       };
 
       const resolvedResponse =
@@ -86,89 +126,79 @@ export class MigueEngine {
           ? rule.error(runtimeContext)
           : rule.error;
 
-      if (rule.triggerError) {
-        res.writeHead(resolvedError?.status || 500, {
-          "Content-Type": "application/json",
-        });
+      ctx.res.setHeader("X-MIGUE", "true");
 
-        res.end(
-          JSON.stringify({
-            ...resolvedError.body,
-            _MIGUE_: { message: "MIGUE FORCED ERROR" },
-          }),
+      if (rule.triggerError) {
+        this.sendJson(
+          ctx.res,
+          resolvedError?.status || 500,
+          resolvedError?.body,
         );
         return;
       }
 
-      res.writeHead(resolvedResponse.status || 200, {
-        "Content-Type": "application/json",
-      });
-
-      res.end(
-        JSON.stringify({
-          ...resolvedResponse.body,
-          _MIGUE_: true,
-        }),
+      this.sendJson(
+        ctx.res,
+        resolvedResponse.status || 200,
+        resolvedResponse.body,
       );
-      return;
-    }
+    };
+  }
 
-    // CASO 2: Backend real
-    if (this.backend) {
+  private createProxyMiddleware(): Middleware {
+    return async (ctx, next) => {
+      if (!this.backend) return next();
+
       const headers = {
-        ...req.headers,
+        ...ctx.req.headers,
         host: undefined,
         "content-length": undefined,
       };
 
       try {
         const response = await axios({
-          url: this.backend + url.pathname + url.search,
-          method: req.method,
-          headers: headers,
-          data: body,
+          url: this.backend + ctx.pathname + ctx.url.search,
+          method: ctx.req.method,
+          headers,
+          data: ctx.body,
           validateStatus: () => true,
-          httpsAgent: new https.Agent({ rejectUnauthorized: false, family: 4 }),
+          httpsAgent: new https.Agent({
+            rejectUnauthorized: false,
+            family: 4,
+          }),
           withCredentials: true,
           timeout: 15000,
         });
 
-        // PASSO CRÍTICO: Replicar headers CORS na resposta
-        // IMPORTANTE: Não sobrescrever os headers CORS que já setamos
-        const responseHeaders = {
-          "Content-Type": "application/json",
-          // Se o backend retornar headers CORS específicos, você pode querer propagá-los
-          // Mas como já setamos *, mantemos assim
-        };
+        ctx.res.writeHead(response.status, response.headers);
 
-        res.writeHead(response.status, responseHeaders);
-        res.end(JSON.stringify(response.data));
-        return;
-
+        if (Buffer.isBuffer(response.data)) {
+          ctx.res.end(response.data);
+        } else if (typeof response.data === "object") {
+          ctx.res.end(JSON.stringify(response.data));
+        } else {
+          ctx.res.end(response.data);
+        }
       } catch (error) {
         console.error("Erro no proxy para backend:", error);
 
-        // Em caso de erro, ainda mantém CORS
-        res.writeHead(502, {
-          "Content-Type": "application/json",
-        });
-
-        res.end(JSON.stringify({
+        this.sendJson(ctx.res, 502, {
           error: "Bad Gateway",
           message: "Falha ao comunicar com backend",
-        }));
-        return;
+        });
       }
-    }
+    };
+  }
 
-    // CASO 3: Sem mock e sem backend
-    res.writeHead(404, {
+  private async applyDelay(delay?: number) {
+    if (!delay || delay <= 0) return;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+
+  private sendJson(res: any, status: number, body: any) {
+    res.writeHead(status, {
       "Content-Type": "application/json",
     });
-
-    res.end(JSON.stringify({
-      error: "Not Found",
-      message: "No mock and no backend configured",
-    }));
+    res.end(JSON.stringify(body));
   }
 }
