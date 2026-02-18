@@ -41,6 +41,10 @@ export function startServer(
       console.log(`🎯 Backend: ${backend}`);
     }
 
+    if (resilient) {
+      console.log("Resilent mode ativado");
+    }
+
     console.log(`📂 Mocks: ${mocksPath}`);
   });
 }

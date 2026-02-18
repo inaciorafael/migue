@@ -3,17 +3,18 @@ import { defineMocks } from "../packages/schema/src/defineMock";
 export default defineMocks([
   {
     enabled: true,
+    triggerError: false,
     match: {
       method: "GET",
       path: "/users/:id",
     },
-    error: () => ({
+    error: ({ params }) => ({
       status: 500,
       body: {
-        errorMessage: "error message",
+        errorMessage: `Erro na chamada do usuario: ${params.id}`,
       },
     }),
-    response: ({ arrayFrom, faker, params, randomBool, uuid }) => ({
+    response: ({ arrayFrom, faker, params, randomBool, uuid, randomInt }) => ({
       status: 200,
       body: {
         sucess: true,
@@ -24,7 +25,7 @@ export default defineMocks([
           users: arrayFrom(5, () => ({
             id: uuid(),
             name: faker.person.fullName(),
-            gender: faker.person.gender(),
+            age: randomInt(18, 70),
             zodicSign: faker.person.zodiacSign(),
             enabled: randomBool(),
           })),
