@@ -14,16 +14,26 @@ export default defineMocks([
         errorMessage: `Erro na chamada do usuario: ${params.id}`,
       },
     }),
-    response: ({ arrayFrom, faker, params, randomBool, uuid, randomInt }) => ({
+    response: ({
+      arrayFrom,
+      faker,
+      params,
+      randomBool,
+      uuid,
+      randomInt,
+      setState,
+      getState,
+    }) => ({
       status: 200,
       body: {
         sucess: true,
         code: 200,
-        message: `${params.id} test`,
+        message: `user id: ${params.id}`,
         data: {
-          id: uuid(),
-          users: arrayFrom(5, () => ({
+          id: setState("id", uuid()),
+          users: arrayFrom(3, () => ({
             id: uuid(),
+            ownerId: getState("id"),
             name: faker.person.fullName(),
             age: randomInt(18, 70),
             zodicSign: faker.person.zodiacSign(),

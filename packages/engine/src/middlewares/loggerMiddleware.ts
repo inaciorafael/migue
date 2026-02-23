@@ -1,35 +1,101 @@
 import { Middleware } from "../middleware";
+import pino from "pino";
+
+const logger = pino({
+  level:
+    process.env.LOG_LEVEL ||
+    (process.env.NODE_ENV === "production" ? "info" : "debug"),
+  formatters: {
+    level: (label) => {
+      return { level: label };
+    },
+  },
+  base: undefined,
+  timestamp: pino.stdTimeFunctions.isoTime,
+  transport:
+    process.env.NODE_ENV !== "production"
+      ? {
+        target: "pino-pretty",
+        options: {
+          colorize: true,
+          translateTime: "HH:MM:ss.l",
+          ignore: "pid,hostname",
+          messageFormat: "{msg} {req.method} {req.url} {res.statusCode}",
+          singleLine: true,
+        },
+      }
+      : undefined,
+});
+
+const httpLogger = logger.child({ module: "http" });
+
+const methodEmoji: Record<string, string> = {
+  GET: "📥",
+  POST: "📤",
+  PUT: "📝",
+  DELETE: "🗑️",
+  PATCH: "🔧",
+  OPTIONS: "⚙️",
+};
 
 export function createLoggerMiddleware(): Middleware {
   return async (ctx, next) => {
     const start = Date.now();
 
-    let statusCode: number | undefined;
-    let source = "UNKNOWN";
+    const requestId = crypto.randomUUID().slice(0, 8);
+    ctx.res.setHeader("X-Request-ID", requestId);
 
-    const originalWriteHead = ctx.res.writeHead;
-    ctx.res.writeHead = function(status: number, ...args: any[]) {
-      statusCode = status;
-      return originalWriteHead.call(this, status, ...args);
-    };
+    const reqLogger = httpLogger.child({
+      requestId,
+      method: ctx.method,
+      path: ctx.pathname,
+    });
 
-    const originalEnd = ctx.res.end;
-    ctx.res.end = function(...args: any[]) {
+    try {
+      await next();
+
       const duration = Date.now() - start;
+      const source = ctx.res.getHeader("X-MIGUE") ? "MOCK" : "API";
+      const status = ctx.res.statusCode;
 
-      if (ctx.res.getHeader("X-MIGUE")) {
-        source = "MOCK";
-      } else {
-        source = "BACKEND";
+      reqLogger.info({
+        msg: `${methodEmoji[ctx.method] || "·"} ${ctx.method} ${ctx.pathname}`,
+        duration,
+        status,
+        source,
+      });
+
+      if (duration > 500) {
+        reqLogger.warn({
+          msg: `🐢 Request lento`,
+          duration,
+          path: ctx.pathname,
+          method: ctx.method,
+        });
       }
 
-      console.log(
-        `[${ctx.method}] ${ctx.pathname} → ${statusCode} (${duration}ms) [${source}]`,
-      );
+      if (status >= 400) {
+        reqLogger.error({
+          msg: `❌ Request falhou`,
+          status,
+          duration,
+          ...(status >= 500 && { stack: new Error().stack }),
+        });
+      }
+    } catch (error) {
+      const duration = Date.now() - start;
 
-      return originalEnd.apply(this, args);
-    };
+      reqLogger.error({
+        msg: `🔥 Erro não tratado`,
+        err: error,
+        duration,
+      });
 
-    await next();
+      throw error;
+    }
   };
 }
+
+export { logger };
+
+export const createModuleLogger = (module: string) => logger.child({ module });

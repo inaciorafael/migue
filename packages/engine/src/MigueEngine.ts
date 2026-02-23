@@ -60,15 +60,6 @@ export class MigueEngine {
     const ctx = await createRequestContext(req, res);
 
     await this.runMiddlewares(ctx);
-
-    // if (await this.tryHandleMock(ctx)) return;
-    //
-    // if (await this.tryProxyToBackend(ctx)) return;
-    //
-    // this.sendJson(res, 404, {
-    //   error: "Not Found",
-    //   message: "No mock and no backend configured",
-    // });
   }
 
   private handlePreflight(req: any, res: any): boolean {
@@ -200,10 +191,7 @@ export class MigueEngine {
         }
       } catch (error) {
         if (this.options.resilient) {
-          const snapshot = this.resilientStore.load(
-            ctx.method,
-            ctx.pathname,
-          );
+          const snapshot = this.resilientStore.load(ctx.method, ctx.pathname);
 
           if (snapshot) {
             ctx.res.setHeader("X-MIGUE-RESILIENT", "true");

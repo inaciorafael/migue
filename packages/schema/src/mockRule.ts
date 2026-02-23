@@ -11,7 +11,10 @@ export const HttpMethodSchema = z.enum([
 ]);
 
 export const MockRuleSchema = z.object({
-  id: z.string().default(crypto.randomUUID()).optional(),
+  id: z
+    .string()
+    .default(() => crypto.randomUUID())
+    .optional(),
   enabled: z.boolean().default(true).optional(),
   triggerError: z.boolean().default(false).optional(),
 
